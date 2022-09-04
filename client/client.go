@@ -3,14 +3,21 @@ package client
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
 
 	"github.com/gorilla/websocket"
 )
+
+type CallBack func([]byte)
 
 type Message struct {
 	Event  string
 	Buffer []byte
 }
+
+var (
+	events = make(map[*websocket.Conn]map[string]CallBack)
+)
 
 func serialize(message Message) ([]byte, error) {
 	buffer := bytes.Buffer{}
@@ -45,14 +52,14 @@ func Connect(socketUrl string) (*websocket.Conn, error) {
 	return conn, nil
 }
 
-func SendHandler(connection *websocket.Conn, message Message) error {
+func SendHandler(conn *websocket.Conn, message Message) error {
 	buffer, err := serialize(message)
 
 	if err != nil {
 		return err
 	}
 
-	err = connection.WriteMessage(websocket.TextMessage, buffer)
+	err = conn.WriteMessage(websocket.TextMessage, buffer)
 
 	if err != nil {
 		return err
@@ -60,12 +67,6 @@ func SendHandler(connection *websocket.Conn, message Message) error {
 
 	return nil
 }
-
-type CallBack func([]byte)
-
-var (
-	events = make(map[string]CallBack)
-)
 
 func ReceiveHandler(conn *websocket.Conn, onStart func(*websocket.Conn)) error {
 	onStart(conn)
@@ -80,10 +81,10 @@ func ReceiveHandler(conn *websocket.Conn, onStart func(*websocket.Conn)) error {
 		message, err := deserialize(buffer)
 
 		if err != nil {
-			return err
+			return errors.New("Connection not found")
 		}
 
-		callback, foundEvents := events[message.Event]
+		callback, foundEvents := events[conn][message.Event]
 
 		if !foundEvents {
 			continue
@@ -103,7 +104,13 @@ func Subscribe(conn *websocket.Conn, event string, callback CallBack) error {
 		return err
 	}
 
-	events[event] = callback
+	_, exist := events[conn]
+
+	if !exist {
+		events[conn] = make(map[string]CallBack)
+	}
+
+	events[conn][event] = callback
 
 	return nil
 }
