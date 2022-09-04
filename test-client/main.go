@@ -28,7 +28,11 @@ func main() {
 		str := ""
 		fmt.Scanf("%s", &str)
 
-		err := client.SendHandler(conn, []byte(str))
+		err := client.SendHandler(conn, client.Message{
+			Event:  "test",
+			Buffer: []byte(str),
+		})
+
 		if err != nil {
 			log.Println("Error on sending message: ", err)
 			return

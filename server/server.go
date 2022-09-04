@@ -1,11 +1,30 @@
 package server
 
 import (
+	"bytes"
+	"encoding/gob"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
 )
+
+type Message struct {
+	Event  string
+	Buffer []byte
+}
+
+func deserialize(buffer []byte) (Message, error) {
+	var message Message
+
+	b := bytes.Buffer{}
+	b.Write(buffer)
+
+	decoder := gob.NewDecoder(&b)
+	err := decoder.Decode(&message)
+
+	return message, err
+}
 
 var connections []*websocket.Conn
 var upgrader = websocket.Upgrader{}
@@ -21,17 +40,24 @@ func SocketHandler(w http.ResponseWriter, r *http.Request) {
 	connections = append(connections, conn)
 
 	for {
-		messageType, message, err := conn.ReadMessage()
+		messageType, buffer, err := conn.ReadMessage()
 
 		if err != nil {
 			log.Println("Error during message reading: ", err)
 			break
 		}
 
-		log.Printf("%s\n", message)
+		message, err := deserialize(buffer)
+
+		if err != nil {
+			log.Println("Error during deserialize message: ", err)
+			break
+		}
+
+		log.Printf("%s: %s\n", message.Event, message.Buffer)
 
 		for _, conn := range connections {
-			err = conn.WriteMessage(messageType, message)
+			err = conn.WriteMessage(messageType, message.Buffer)
 
 			if err != nil {
 				log.Println("Error during message writing:", err)
