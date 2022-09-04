@@ -17,7 +17,7 @@ func receive(conn *websocket.Conn) {
 }
 
 func main() {
-	conn, err := client.Connect("ws://localhost:8080/events")
+	conn, err := client.Connect("localhost:8080")
 
 	if err != nil {
 		log.Println("Error on connecting to server: ", err)

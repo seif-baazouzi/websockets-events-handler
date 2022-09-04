@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
+	"fmt"
 
 	"github.com/gorilla/websocket"
 )
@@ -19,32 +20,8 @@ var (
 	events = make(map[*websocket.Conn]map[string]CallBack)
 )
 
-func serialize(message Message) ([]byte, error) {
-	buffer := bytes.Buffer{}
-	encoder := gob.NewEncoder(&buffer)
-	err := encoder.Encode(message)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
-}
-
-func deserialize(buffer []byte) (Message, error) {
-	var message Message
-
-	b := bytes.Buffer{}
-	b.Write(buffer)
-
-	decoder := gob.NewDecoder(&b)
-	err := decoder.Decode(&message)
-
-	return message, err
-}
-
 func Connect(socketUrl string) (*websocket.Conn, error) {
-	conn, _, err := websocket.DefaultDialer.Dial(socketUrl, nil)
+	conn, _, err := websocket.DefaultDialer.Dial(fmt.Sprintf("ws://%s/events", socketUrl), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -113,4 +90,28 @@ func Subscribe(conn *websocket.Conn, event string, callback CallBack) error {
 	events[conn][event] = callback
 
 	return nil
+}
+
+func serialize(message Message) ([]byte, error) {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	err := encoder.Encode(message)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func deserialize(buffer []byte) (Message, error) {
+	var message Message
+
+	b := bytes.Buffer{}
+	b.Write(buffer)
+
+	decoder := gob.NewDecoder(&b)
+	err := decoder.Decode(&message)
+
+	return message, err
 }
