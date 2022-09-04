@@ -34,7 +34,7 @@ func socketHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer conn.Close()
+	defer closeConnection(conn)
 	handlerEventLoop(conn)
 }
 
@@ -64,7 +64,7 @@ func handlerEventLoop(conn *websocket.Conn) {
 			continue
 		}
 
-		log.Printf("%s: %s\n", message.Event, message.Buffer)
+		log.Printf("%s %s: %s\n", conn.RemoteAddr(), message.Event, message.Buffer)
 
 		_, foundEvent := connections[message.Event]
 
@@ -79,7 +79,7 @@ func handlerEventLoop(conn *websocket.Conn) {
 func subscribe(conn *websocket.Conn, message Message) {
 	eventName := fmt.Sprintf("%s", message.Buffer)
 	connections[eventName] = append(connections[eventName], conn)
-	log.Printf("Subscribe to event %s\n", eventName)
+	log.Printf("%s Subscribed to event %s\n", conn.RemoteAddr(), eventName)
 }
 
 func unsubscribe(conn *websocket.Conn, message Message) {
@@ -93,7 +93,7 @@ func unsubscribe(conn *websocket.Conn, message Message) {
 	}
 
 	connections[eventName] = newConnectionsList
-	log.Printf("Unsubscribe from event %s\n", eventName)
+	log.Printf("%s Unsubscribed to event %s\n", conn.RemoteAddr(), eventName)
 }
 
 func sendMessagesToSubscribers(event string, messageType int, buffer []byte) {
@@ -105,6 +105,23 @@ func sendMessagesToSubscribers(event string, messageType int, buffer []byte) {
 			continue
 		}
 	}
+}
+
+func closeConnection(conn *websocket.Conn) {
+	conn.Close()
+
+	for event, connectionsList := range connections {
+		newList := []*websocket.Conn{}
+		for _, c := range connectionsList {
+			if c != conn {
+				newList = append(newList, c)
+			}
+		}
+
+		connections[event] = newList
+	}
+
+	log.Printf("%s Closed Connection\n", conn.RemoteAddr())
 }
 
 func deserialize(buffer []byte) (Message, error) {
