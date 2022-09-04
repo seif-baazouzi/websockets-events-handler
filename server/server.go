@@ -20,7 +20,14 @@ var (
 )
 var upgrader = websocket.Upgrader{}
 
-func SocketHandler(w http.ResponseWriter, r *http.Request) {
+func StartServer(host string) {
+	http.HandleFunc("/events", socketHandler)
+	log.Printf("Server started at %s\n", host)
+
+	log.Fatal(http.ListenAndServe(host, nil))
+}
+
+func socketHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println("Error during connection upgradation: ", err)
