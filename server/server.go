@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/gob"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -26,7 +27,9 @@ func deserialize(buffer []byte) (Message, error) {
 	return message, err
 }
 
-var connections []*websocket.Conn
+var (
+	connections = make(map[string][]*websocket.Conn)
+)
 var upgrader = websocket.Upgrader{}
 
 func SocketHandler(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +40,6 @@ func SocketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer conn.Close()
-	connections = append(connections, conn)
 
 	for {
 		messageType, buffer, err := conn.ReadMessage()
@@ -54,10 +56,24 @@ func SocketHandler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
+		if message.Event == "subscribe" {
+			eventName := fmt.Sprintf("%s", message.Buffer)
+			connections[eventName] = append(connections[eventName], conn)
+			log.Printf("Subscribe to event %s\n", eventName)
+
+			continue
+		}
+
 		log.Printf("%s: %s\n", message.Event, message.Buffer)
 
-		for _, conn := range connections {
-			err = conn.WriteMessage(messageType, message.Buffer)
+		_, foundEvent := connections[message.Event]
+
+		if !foundEvent {
+			continue
+		}
+
+		for _, conn := range connections[message.Event] {
+			err = conn.WriteMessage(messageType, buffer)
 
 			if err != nil {
 				log.Println("Error during message writing:", err)

@@ -9,8 +9,10 @@ import (
 )
 
 func receive(conn *websocket.Conn) {
-	client.ReceiveHandler(conn, func(buffer []byte) {
-		log.Printf("%s\n", buffer)
+	client.ReceiveHandler(conn, func(conn *websocket.Conn) {
+		client.Subscribe(conn, "event", func(buffer []byte) {
+			log.Printf("%s\n", buffer)
+		})
 	})
 }
 
@@ -29,7 +31,7 @@ func main() {
 		fmt.Scanf("%s", &str)
 
 		err := client.SendHandler(conn, client.Message{
-			Event:  "test",
+			Event:  "event",
 			Buffer: []byte(str),
 		})
 
