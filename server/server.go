@@ -55,10 +55,12 @@ func handlerEventLoop(conn *websocket.Conn) {
 		}
 
 		if message.Event == "subscribe" {
-			eventName := fmt.Sprintf("%s", message.Buffer)
-			connections[eventName] = append(connections[eventName], conn)
-			log.Printf("Subscribe to event %s\n", eventName)
+			subscribe(conn, message)
+			continue
+		}
 
+		if message.Event == "unsubscribe" {
+			unsubscribe(conn, message)
 			continue
 		}
 
@@ -72,6 +74,26 @@ func handlerEventLoop(conn *websocket.Conn) {
 
 		sendMessagesToSubscribers(message.Event, messageType, buffer)
 	}
+}
+
+func subscribe(conn *websocket.Conn, message Message) {
+	eventName := fmt.Sprintf("%s", message.Buffer)
+	connections[eventName] = append(connections[eventName], conn)
+	log.Printf("Subscribe to event %s\n", eventName)
+}
+
+func unsubscribe(conn *websocket.Conn, message Message) {
+	eventName := fmt.Sprintf("%s", message.Buffer)
+	newConnectionsList := []*websocket.Conn{}
+
+	for _, c := range connections[eventName] {
+		if c != conn {
+			newConnectionsList = append(newConnectionsList, c)
+		}
+	}
+
+	connections[eventName] = newConnectionsList
+	log.Printf("Unsubscribe from event %s\n", eventName)
 }
 
 func sendMessagesToSubscribers(event string, messageType int, buffer []byte) {

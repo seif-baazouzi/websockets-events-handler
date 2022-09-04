@@ -30,6 +30,10 @@ func main() {
 		str := ""
 		fmt.Scanf("%s", &str)
 
+		if str == "exit" {
+			client.Unsubscribe(conn, "event")
+		}
+
 		err := client.SendHandler(conn, client.Message{
 			Event:  "event",
 			Buffer: []byte(str),

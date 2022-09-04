@@ -92,6 +92,25 @@ func Subscribe(conn *websocket.Conn, event string, callback CallBack) error {
 	return nil
 }
 
+func Unsubscribe(conn *websocket.Conn, event string) error {
+	err := SendHandler(conn, Message{
+		Event:  "unsubscribe",
+		Buffer: []byte(event),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	_, exist := events[conn]
+
+	if exist {
+		delete(events[conn], event)
+	}
+
+	return nil
+}
+
 func serialize(message Message) ([]byte, error) {
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)
